@@ -1,0 +1,168 @@
+service: sftp-lambda
+
+variablesResolutionMode: 20210326
+
+# This file is used for integration tests.
+# It's designed to be used with offline serverless, S3 & SQS emulation
+# to connect to a local dockerised ftp container for testing.
+#
+# See https://serverless.com/ for more info about the Serverless framework.
+
+package:
+  exclude:
+    - "**"
+  include:
+    - handlers/**
+    - node_modules/**
+    - "!node_modules/aws-sdk/**" # because Lambda environment already includes this
+
+plugins:
+  - serverless-pseudo-parameters
+  - serverless-s3-local
+  - serverless-offline-sqs
+  - serverless-offline
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: ${opt:region, "eu-central-1"}
+  timeout: 20
+  reservedConcurrency: 1
+  stage: ${opt:stage}
+  stackTags:
+    project: sftp-lambda
+  environment:
+    # The environment variables apply to all functions.
+    STAGE: ${self:provider.stage}
+    SFTP_HOST: ${self:custom.${self:provider.stage}.ftp.connection.host}
+    SFTP_PORT: ${self:custom.${self:provider.stage}.ftp.connection.port}
+    SFTP_USER: ${self:custom.${self:provider.stage}.ftp.connection.user}
+    SFTP_PRIVATE_KEY: ${self:custom.${self:provider.stage}.ftp.connection.sshPrivateKey, null}
+    SFTP_SSH_READY_TIMEOUT_SECONDS: 5
+    SFTP_PUSH_TIMEOUT_SECONDS: 10
+    SFTP_PASSWORD: ${self:custom.${self:provider.stage}.ftp.connection.sshPassword, null}
+    SFTP_RETRY_QUEUE_NAME: ${self:custom.${self:provider.stage}.push_files.retry_queue}
+    SFTP_SOURCE_S3_REGEXP_STRIP: ^${self:custom.${self:provider.stage}.push_files.s3_prefix}
+    SFTP_TARGET_DIR: ${self:custom.${self:provider.stage}.push_files.ftp_target_dir}
+    SNS_TOPIC_ARN: ${self:custom.${self:provider.stage}.notifications.sns}
+  iam:
+    role:
+      statements:
+        # Allow functions to list all buckets
+        - Effect: Allow
+          Action: "s3:ListBucket"
+          Resource: "*"
+        # Allow functions to read/write objects in a bucket
+        - Effect: Allow
+          Action:
+            - "s3:GetObject"
+          Resource:
+            - "arn:aws:s3:::${self:custom.${self:provider.stage}.push_files.bucket}/${self:custom.${self:provider.stage}.push_files.s3_prefix}*"
+
+custom:
+  s3: # local testing
+    port: 8000
+    directory: integration-test/tmp/s3-local # this directory must be already created.
+
+  serverless-offline-sqs: # local testing
+    endpoint: http://0.0.0.0:9324
+    region: ${self:provider.region}
+    accessKeyId: local
+    secretAccessKey: local
+    skipCacheInvalidation: false
+
+  local:
+    ftp:
+      connection:
+        host: localhost
+        port: 2222
+        user: demo
+        #sshPrivateKey: ${file(integration-test/serverlessGetSSHTestKey.js):sshPrivateKey}
+        sshPrivateKey: |
+          -----BEGIN RSA PRIVATE KEY-----
+          example-private-key
+          -----END RSA PRIVATE KEY-----
+    push_files:
+      bucket: erp-test-toto
+      s3_prefix: outbound/
+      ftp_target_dir: ftp-share/inbound/
+      retry_queue: erp-test-toto
+    notifications:
+      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+    # Define the following connection structure for testing:
+    #
+    # {bucket}:
+    #   outbound/
+    #   inbound/
+    # {ftp}:
+    #   ftp-share/
+    #     outbound/
+    #     inbound/
+    #
+    # pull_files not used
+    # pull_files:
+    #   target_s3_prefix: inbound/
+    #   ftp_source_dir: ftp-share/outbound/
+
+  toto:
+    ftp:
+      connection:
+        host: s-b8414815b2c6490a9.server.transfer.eu-central-1.amazonaws.com
+        port: 22
+        user: loic
+        #sshPrivateKey: ${file(integration-test/serverlessGetSSHTestKey.js):sshPrivateKey}
+        #sshPrivateKey: tempo-need-to-import
+        sshPrivateKey: |
+          -----BEGIN RSA PRIVATE KEY-----
+          example-private-key
+          -----END RSA PRIVATE KEY-----
+    push_files:
+      bucket: erp-test-toto
+      s3_prefix: toto/
+      ftp_target_dir: /erp-test-toto/sftp/
+      retry_queue: erp-test-toto
+    notifications:
+      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+
+  titi:
+    ftp:
+      connection:
+        host: s-2941a466a658417a9.server.transfer.eu-central-1.amazonaws.com
+        port: 22
+        user: user2
+        #sshPrivateKey: ${file(integration-test/serverlessGetSSHTestKey.js):sshPrivateKey}
+        #sshPrivateKey: tempo-need-to-import
+        sshPassword: password
+    push_files:
+      bucket: erp-test-toto
+      s3_prefix: toto/
+      ftp_target_dir: /
+      retry_queue: erp-test-toto
+    notifications:
+      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+
+functions:
+  # pullFiles:
+  #   handler: handlers/pull.pull
+  #   environment:
+  #     SFTP_SOURCE_DIR: ${self:custom.${self:provider.stage}.pull_files.ftp_source_dir}
+  #     SFTP_FILE_RETENTION_DAYS: 0
+  #     SFTP_TARGET_S3_BUCKET: ${self:custom.${self:provider.stage}.ftp.bucket}
+  #     SFTP_TARGET_S3_PREFIX: ${self:custom.${self:provider.stage}.pull_files.target_s3_prefix}
+  #   alarms:
+  #     - functionErrors
+  pushFiles:
+    handler: handlers/push.push
+    events:
+      - s3:
+          bucket: ${self:custom.${self:provider.stage}.push_files.bucket}
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: ${self:custom.${self:provider.stage}.push_files.s3_prefix}
+          existing: true
+    alarms:
+      - functionErrors
+
+  pushFilesRetry:
+    handler: handlers/pushRetry.pushRetry
+    alarms:
+      - functionErrors
