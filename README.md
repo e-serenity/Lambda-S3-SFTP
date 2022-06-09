@@ -33,12 +33,17 @@ Inspired by https://github.com/lqueryvg/sftp-lambda
 - Install serverless : npm install -g serverless
 - serverless plugin install -n serverless-pseudo-parameters
 
+If you need ssh keys for your server :
+
+- Generate ssh key generation with script integration-test/init-ssh-key.
+- Todo: Fix ssh key extraction for local ? For the moment specify key in serverless.yml using pipe |
+
 ### AWS ressources
 
 - Create s3 bucket
 - Create SQS queue (6 hours message retention)
-- Generate ssh key generation with script integration-test/init-ssh-key.
-- Todo: Fix ssh key extraction for local ? For the moment specify key in serverless.yml using pipe |
+- Create SNS Topic for failed retries notifications
+- restrict IAM policy in serverless.yml as you need
 
 ### Deploy
 
@@ -57,8 +62,6 @@ remove:
 
 ### Todo once deployed
 
-- Add SQS rights on lambda execution role
-- Add sns rights on lambda execution role
 - Add eventbridge schedule expression trigger on pushretry lambda (rate 1h for example)
 - parallelism of 1 on each lambda
 - Assign to VPC if need of static ip address
@@ -67,7 +70,7 @@ remove:
 
 - Pull from sftp is commented, need to create a new yml file dedicated to this function if needed ?
 - Store sftp credentials in Secrets manager ?
-- Add wwebpack plugin for smaller zip ?
+- Add webpack plugin for smaller zip ?
 
 ## Characteristics & Use Cases
 

@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [8.x, 10.x, 12.x]
+        node-version: [14.x]
 
     steps:
       - uses: actions/checkout@v1
@@ -21,6 +21,6 @@ jobs:
           yarn
           yarn lint
           yarn test
-      - name: integration tests
-        run: |
-          yarn test:ci
+      # - name: integration tests
+      #   run: |
+      #     yarn test:ci

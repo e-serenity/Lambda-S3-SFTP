@@ -3,8 +3,6 @@ const { pushFile } = require("./lib/pushFile");
 // put single file to sftp server
 // - triggered by S3 putObject event
 module.exports.push = async (event, context, callback) => {
-  console.log(`push() invoked`);
-
   // Note: DO NOT assert that the config is correct at this point
   // Reason: if the config (specified by environment variables)
   // is wrong we want to put this object on the retry queue so it

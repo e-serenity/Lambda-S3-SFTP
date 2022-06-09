@@ -47,16 +47,57 @@ provider:
   iam:
     role:
       statements:
-        # Allow functions to list all buckets
+        # Allow functions to create a network interface if need to assign to a VPC
         - Effect: Allow
-          Action: "s3:ListBucket"
+          Action:
+            - "ec2:CreateNetworkInterface"
+            - "ec2:DescribeNetworkInterfaces"
+            - "ec2:DeleteNetworkInterface"
           Resource: "*"
         # Allow functions to read/write objects in a bucket
         - Effect: Allow
           Action:
             - "s3:GetObject"
+            - "s3:DeleteObjectTagging"
+            - "s3:GetObjectVersionTagging"
+            - "s3:ListBucketVersions"
+            - "s3:PutObjectVersionTagging"
+            - "s3:ListBucket"
+            - "s3:DeleteObjectVersionTagging"
+            - "s3:GetBucketAcl"
+            - "s3:PutObject"
+            - "s3:GetObjectAcl"
+            - "s3:GetObject"
+            - "s3:GetBucketCORS"
+            - "s3:GetObjectVersionAcl"
+            - "s3:PutObjectTagging"
+            - "s3:DeleteObject"
+            - "s3:PutObjectAcl"
+            - "s3:GetObjectVersion"
           Resource:
             - "arn:aws:s3:::${self:custom.${self:provider.stage}.push_files.bucket}/${self:custom.${self:provider.stage}.push_files.s3_prefix}*"
+            - "arn:aws:s3:::${self:custom.${self:provider.stage}.push_files.bucket}/*"
+            - "arn:aws:s3:::${self:custom.${self:provider.stage}.push_files.bucket}"
+        # Allow functions to read/write messages in SQS
+        - Effect: Allow
+          Action:
+            - "sqs:DeleteMessage"
+            - "sqs:GetQueueUrl"
+            - "sqs:ChangeMessageVisibility"
+            - "sqs:ReceiveMessage"
+            - "sqs:SendMessage"
+            - "sqs:GetQueueAttributes"
+          Resource: "arn:aws:s3:::${self:custom.${self:provider.stage}.push_files.retry_queue}"
+        # Allow functions to send messages to SNS topic
+        - Effect: Allow
+          Action:
+            - "sqs:DeleteMessage"
+            - "sqs:GetQueueUrl"
+            - "sqs:ChangeMessageVisibility"
+            - "sqs:ReceiveMessage"
+            - "sqs:SendMessage"
+            - "sqs:GetQueueAttributes"
+          Resource: "arn:aws:sns:::${self:custom.${self:provider.stage}.notifications.sns}"
 
 custom:
   s3: # local testing
@@ -87,7 +128,7 @@ custom:
       ftp_target_dir: ftp-share/inbound/
       retry_queue: erp-test-toto
     notifications:
-      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+      sns: arn:aws:sns:eu-central-1:272969123456:SNSTopicEmail-1PLFAQAM2VHX0
     # Define the following connection structure for testing:
     #
     # {bucket}:
@@ -106,11 +147,10 @@ custom:
   toto:
     ftp:
       connection:
-        host: s-b8414815b2c6490a9.server.transfer.eu-central-1.amazonaws.com
+        host: my-sftp-host
         port: 22
         user: loic
         #sshPrivateKey: ${file(integration-test/serverlessGetSSHTestKey.js):sshPrivateKey}
-        #sshPrivateKey: tempo-need-to-import
         sshPrivateKey: |
           -----BEGIN RSA PRIVATE KEY-----
           example-private-key
@@ -121,26 +161,25 @@ custom:
       ftp_target_dir: /erp-test-toto/sftp/
       retry_queue: erp-test-toto
     notifications:
-      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+      sns: arn:aws:sns:eu-central-1:272969123456:SNSTopicEmail-1PLFAQAM2VHX0
 
   titi:
     ftp:
       connection:
-        host: s-2941a466a658417a9.server.transfer.eu-central-1.amazonaws.com
+        host: my-sftp-host
         port: 22
         user: user2
-        #sshPrivateKey: ${file(integration-test/serverlessGetSSHTestKey.js):sshPrivateKey}
-        #sshPrivateKey: tempo-need-to-import
         sshPassword: password
     push_files:
-      bucket: erp-test-toto
-      s3_prefix: toto/
+      bucket: erp-test-titi
+      s3_prefix: titi/
       ftp_target_dir: /
       retry_queue: erp-test-toto
     notifications:
-      sns: arn:aws:sns:eu-central-1:272969352519:Slack-notifications-SNSTopicEmail-1PLFAQAM2VHX0
+      sns: arn:aws:sns:eu-central-1:272969123456:SNSTopicEmail-1PLFAQAM2VHX0
 
 functions:
+  # Pull files function disable
   # pullFiles:
   #   handler: handlers/pull.pull
   #   environment:

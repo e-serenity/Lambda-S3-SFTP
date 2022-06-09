@@ -1,3 +1,5 @@
+const AWS = require("aws-sdk");
+
 const SSH2Promise = require("ssh2-promise");
 const path = require("path");
 const { SFTP_STATUS_CODE } = require("ssh2");
@@ -120,6 +122,7 @@ const pushFileInternal = async ({ Bucket, Key }) => {
 };
 
 module.exports.pushFile = async ({ Bucket, Key, isRetry = false }) => {
+  console.log("toto");
   try {
     initEnvVars("push");
 
@@ -133,17 +136,15 @@ module.exports.pushFile = async ({ Bucket, Key, isRetry = false }) => {
       const sns = new AWS.SNS();
       await sns
         .publish({
-          Message: JSON.stringify("Problem to send the file " + Key),
+          Message: JSON.stringify(`Problem to send the file ${Key}`),
           Subject: "ERP transfer ",
           TopicArn: process.env.SNS_TOPIC_ARN
         })
         .promise();
       // to check to delete message, actually spaming mails...
-      //await sqs.deleteMessage(q, message.ReceiptHandle);
+      // await sqs.deleteMessage(q, message.ReceiptHandle);
       throw error;
     } else {
-      const sshconfig = getSSHConfig();
-      console.log(sshconfig);
       console.log(
         `ERROR: pushFile() got the following error:\n${error.message}`
       );

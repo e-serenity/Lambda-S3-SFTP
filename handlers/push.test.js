@@ -80,6 +80,7 @@ describe("push handler", () => {
   it("send file with bad config will queue event for pushRetry", async () => {
     delete process.env.SFTP_HOST; // this is the bad config !
     expect.assertions(3);
+
     try {
       await push(s3SamplePutEvent);
     } catch (err) {
